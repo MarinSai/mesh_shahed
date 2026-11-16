@@ -8,12 +8,8 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Libre+Franklin:wght@400;500;600&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
 <style>
-  /*
-    POLICES DU GRAND CONTINENT
-    Coller ici les deux @font-face (Sanomat Bold, National Regular/Medium) en base64.
-    Tant qu'elles ne sont pas intégrées, la page utilise Sanomat et National si elles
-    sont installées sur la machine, sinon Playfair Display et Libre Franklin.
-  */
+  /* Polices du Grand Continent non intégrées dans cette version publique : la page utilise Sanomat et National
+     si elles sont installées sur la machine, sinon Playfair Display et Libre Franklin. */
   :root{
     /* Bloc graphique pour iframe : titre, clé, scène animée, étapes, légende, source.
        Tout est aligné à gauche, sans cadre. Thème clair uniquement. */
@@ -149,11 +145,11 @@
     </section>
     <section class="legende" data-i="3">
       <h2>Le «&nbsp;dôme&nbsp;» de Kiev</h2>
-      <p>Des brouilleurs installés sur plusieurs centaines de sites saturent les fréquences des modems. Privé de liaison, le drone d’attaque bascule en navigation inertielle et vole en ligne droite, ce qui le rend plus facile à abattre. L’efficacité du dispositif reste à démontrer.</p>
+      <p>Des brouilleurs installés sur plusieurs centaines de sites saturent les fréquences des modems. Privé de liaison, le drone d’attaque bascule en navigation inertielle et vole en ligne droite, ce qui le rend plus facile à abattre.</p>
     </section>
   </div>
 
-  <p class="source">Schéma de principe, sans échelle. Sources&nbsp;: Serhii Beskrestnov, The Wall Street Journal, Hromadske Radio · Graphique&nbsp;: Le Grand Continent</p>
+  <p class="source">Sources&nbsp;: Serhii Beskrestnov, The Wall Street Journal, Hromadske Radio · Graphique&nbsp;: Le Grand Continent</p>
 
 </main>
 
@@ -172,19 +168,19 @@
 
   // ---------- Deux mises en scène : large et étroite (téléphone) ----------
   const WIDE = {
-    VW: 1000, VH: 384, gy0: 352, bulge: 90,
-    ant: { x: 60, h: 64 }, border: 250, R: 125, AR: 229, a0: 160, v: 2.2,
-    relays: [[0, 112], [110, 67], [108, 155], [215, 110], [322, 70], [320, 155], [428, 112], [525, 135]],
-    strike: [610, 185], wob: 8, after: [15, 1.5],
-    dome: { x: 865, r: 290 }, target: 5,
+    VW: 1000, VH: 406, gy0: 374, bulge: 90,
+    ant: { x: 60, h: 64 }, border: 250, R: 180, AR: 325, a0: 250, v: 2.2,
+    relays: [[0, 88], [0, 170], [150, 88], [150, 170], [300, 88], [300, 170]],
+    strike: [430, 172], wob: 8, after: [15, 1.5],
+    dome: { x: 865, r: 320 }, target: 5,
     city: [[772, 16, 20], [792, 12, 34], [808, 18, 26], [830, 12, 46], [846, 20, 30], [870, 14, 56], [888, 18, 38], [910, 12, 28], [926, 16, 42], [946, 12, 24]],
     low: { x0: 300, x1: 700, alt: 14 }, full: true
   };
   const NARROW = {
     VW: 500, VH: 358, gy0: 332, bulge: 62,
-    ant: { x: 34, h: 46 }, border: 128, R: 100, AR: 172, a0: 80, v: 1.1,
-    relays: [[0, 120], [86, 78], [86, 150], [172, 110], [258, 74], [256, 148]],
-    strike: [330, 125], wob: 6, after: [7.5, 1],
+    ant: { x: 34, h: 46 }, border: 128, R: 140, AR: 228, a0: 120, v: 1.1,
+    relays: [[0, 80], [0, 150], [115, 80], [115, 150]],
+    strike: [215, 135], wob: 6, after: [7.5, 1],
     dome: { x: 430, r: 190 }, target: 5,
     city: [[374, 12, 16], [389, 9, 26], [401, 13, 20], [417, 9, 34], [429, 14, 23], [446, 10, 42], [459, 13, 28], [475, 9, 20]],
     low: { x0: 150, x1: 352, alt: 11 }, full: false
@@ -313,7 +309,7 @@
       for (let i = 0; i < seg.length; i++){ if (d <= seg[i]){ const k = d / seg[i];
         return { x: path[i].x + (path[i + 1].x - path[i].x) * k, y: path[i].y + (path[i + 1].y - path[i].y) * k }; } d -= seg[i]; }
       return path[path.length - 1]; };
-    const n = Math.max(2, Math.round(len / (L.full ? 190 : 150)));
+    const n = Math.max(2, Math.round(len / (L.full ? 230 : 170)));
     ctx.save(); ctx.globalAlpha *= a;
     for (let k = 0; k < n; k++){
       const img = at(-t * (L.full ? 105 : 70) + (k + .5) * len / n);      // images : vers l'opérateur
@@ -548,11 +544,11 @@
     if (step === 1){
       const fa = clamp((t - TL.steps[1][0] - .6) / .6) * clamp((TL.steps[1][1] - t) / .5);
       ctx.save(); ctx.globalAlpha *= fa;
-      label('≈ 2 000 m', Math.max(r0.x, 34 * u), r0.y - L.R / 2 - 10 * u, { color: C.gris, size: 11.5 });
+      label('≈ 2 000 m', r0.x - 16 * u, r0.y - 13 * u, { color: C.gris, size: 11.5, align: 'right' });
       ctx.restore();
     }
     if (L.full){
-      const mid = st.relays[3];
+      const mid = st.relays[3];   // relais bas du deuxième rang
       if (step === 1 && !mid.dead){ const p = D.get(mid.id); label('Drones relais', p.x, p.y + 25 * u, { w: 600 }); }
       if (!st.S.jam && s > .8) label('Drone d’attaque', sp.x, sp.y + 25 * u, { w: 600 });
       if (step === 1){ const tp = targetPos(); label('Cible', tp.x, tp.y - 19 * u, { w: 600 }); }
