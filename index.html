@@ -1,0 +1,639 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Comment fonctionne le réseau maillé des Shahed russes</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Libre+Franklin:wght@400;500;600&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
+<style>
+  /*
+    POLICES DU GRAND CONTINENT
+    Coller ici les deux @font-face (Sanomat Bold, National Regular/Medium) en base64.
+    Tant qu'elles ne sont pas intégrées, la page utilise Sanomat et National si elles
+    sont installées sur la machine, sinon Playfair Display et Libre Franklin.
+  */
+  :root{
+    /* Bloc graphique pour iframe : titre, clé, scène animée, étapes, légende, source.
+       Tout est aligné à gauche, sans cadre. Thème clair uniquement. */
+    --papier:#ffffff;
+    --encre:#141414;
+    --gris:#6e6e73;
+    --filet:#dcdcdc;
+    --sol:#f1f0ed;
+    --rouge:#dd203c;   /* drones russes, liaison radio */
+    --bleu:#1f4aa8;    /* brouillage ukrainien */
+    --titre:"Sanomat","Sanomat Web","Playfair Display",Georgia,"Times New Roman",serif;
+    --texte:"National","National Web","Libre Franklin","Helvetica Neue",Arial,sans-serif;
+    --marge:20px;
+    color-scheme:light;
+  }
+  html.embarque{--marge:0px}
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{background:var(--papier);color:var(--encre);font-family:var(--texte);-webkit-text-size-adjust:100%}
+  body{overflow-x:hidden}
+
+  .bloc{max-width:1040px;margin:0 auto;padding:6px var(--marge) 10px;display:flex;flex-direction:column;gap:14px}
+
+  .tete{display:flex;flex-direction:column;gap:6px}
+  h1{font-family:var(--titre);font-weight:700;font-size:clamp(21px,3.3vw,28px);line-height:1.16;text-wrap:balance}
+  .chapo{font-size:15px;line-height:1.4;color:var(--gris)}
+
+  .cle{list-style:none;display:flex;flex-wrap:wrap;gap:6px 18px;font-size:12.5px;line-height:1.3;color:#3b3b40}
+  .cle li{display:flex;align-items:center;gap:6px;white-space:nowrap}
+  .cle svg{flex:none;display:block}
+
+  .scene{position:relative;line-height:0}
+  canvas{display:block;width:100%}
+
+  .pilotage{display:flex;align-items:flex-start;gap:12px}
+  .lecture{flex:none;width:44px;height:44px;border-radius:50%;border:1px solid var(--encre);background:var(--papier);color:var(--encre);
+           display:grid;place-items:center;cursor:pointer;-webkit-tap-highlight-color:transparent}
+  .lecture:hover{background:var(--encre);color:var(--papier)}
+  .lecture svg{display:block}
+  .lecture .ico-lecture{display:none}
+  .lecture[aria-pressed="true"] .ico-pause{display:none}
+  .lecture[aria-pressed="true"] .ico-lecture{display:block}
+
+  .etapes{flex:1;min-width:0;list-style:none;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
+  .etapes button{display:block;width:100%;min-height:44px;padding:0 0 4px;border:0;background:none;font:inherit;text-align:left;
+                 color:var(--gris);cursor:pointer;-webkit-tap-highlight-color:transparent}
+  .jauge{display:block;height:3px;background:var(--filet);overflow:hidden}
+  .jauge i{display:block;height:100%;width:0;background:var(--rouge)}
+  .nom{display:block;margin-top:9px;font-size:13px;line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .num{font-variant-numeric:tabular-nums;margin-right:5px}
+  .etapes button:hover .nom{color:var(--encre)}
+  .etapes button.actif{color:var(--encre)}
+  .etapes button.actif .nom{font-weight:600}
+
+  button:focus-visible{outline:2px solid var(--bleu);outline-offset:3px}
+
+  .legendes{display:grid}
+  .legende{grid-area:1/1;display:flex;flex-direction:column;gap:6px;visibility:hidden;opacity:0;transition:opacity .3s}
+  .legende.actif{visibility:visible;opacity:1}
+  .legende h2{font-family:var(--titre);font-weight:700;font-size:20px;line-height:1.2}
+  .legende p{font-size:15.5px;line-height:1.5;color:#29292d;max-width:66ch}
+
+  .source{font-size:12px;line-height:1.45;color:var(--gris);border-top:1px solid var(--filet);padding-top:10px}
+
+  @media (max-width:560px){
+    .bloc{gap:12px}
+    .chapo{font-size:14px}
+    .cle{gap:5px 14px;font-size:12px}
+    .pilotage{gap:10px}
+    .etapes{gap:4px}
+    .nom{font-size:12px}
+    .num{display:none}
+    .legende h2{font-size:18px}
+    .legende p{font-size:15px}
+  }
+  @media (max-width:400px){
+    :root{--marge:16px}
+    .nom{font-size:11.5px}
+  }
+  @media (prefers-reduced-motion:reduce){ .legende{transition:none} }
+</style>
+<script>
+  /* Bloc iFrame du Grand Continent (iframe-resizer) : quand la page parente répond,
+     on retire la marge latérale pour s'aligner sur la colonne de l'article. */
+  window.iFrameResizer = { onReady: function(){ document.documentElement.classList.add('embarque'); } };
+</script>
+<script src="https://cdn.jsdelivr.net/npm/@iframe-resizer/child@5.5.9/index.umd.js" async></script>
+</head>
+<body>
+<main class="bloc">
+
+  <header class="tete">
+    <h1>Comment fonctionne le réseau maillé des Shahed russes</h1>
+    <p class="chapo">Et comment le «&nbsp;dôme&nbsp;» déployé au-dessus de Kiev cherche à le couper</p>
+  </header>
+
+  <ul class="cle" aria-label="Clé de lecture">
+    <li><svg width="16" height="12" viewBox="0 0 16 12" aria-hidden="true"><path d="M15 6 L2 1 L5 6 L2 11 Z" fill="#fff" stroke="#dd203c" stroke-width="1.4" stroke-linejoin="round"/></svg>Drone relais</li>
+    <li><svg width="16" height="12" viewBox="0 0 16 12" aria-hidden="true"><path d="M15 6 L2 1 L5 6 L2 11 Z" fill="#dd203c" stroke="#dd203c" stroke-width="1.4" stroke-linejoin="round"/></svg>Drone d’attaque</li>
+    <li><svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><circle cx="7" cy="7" r="6" fill="rgba(221,32,60,.07)" stroke="#dd203c" stroke-opacity=".55" stroke-dasharray="2 2"/></svg>Portée radio</li>
+    <li><svg width="26" height="10" viewBox="0 0 26 10" aria-hidden="true"><path d="M1 5 H25" stroke="#dd203c" stroke-width="1.8"/><circle cx="8" cy="5" r="2.6" fill="#141414"/><circle cx="18" cy="5" r="2.4" fill="#fff" stroke="#141414" stroke-width="1.2"/></svg>Liaison&nbsp;: commandes et images</li>
+    <li><svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><circle cx="7" cy="7" r="6" fill="rgba(31,74,168,.1)" stroke="#1f4aa8" stroke-width="1.2"/><circle cx="7" cy="7" r="2" fill="#1f4aa8"/></svg>Brouillage</li>
+  </ul>
+
+  <div class="scene" id="scene">
+    <canvas id="c" role="img" aria-label="Schéma animé en quatre étapes : un drone à basse altitude perd le contact radio en passant sous l’horizon ; des drones relais se transmettent le signal jusqu’au drone d’attaque ; le réseau contourne les relais abattus ; le brouillage déployé au-dessus de Kiev rompt la liaison."></canvas>
+  </div>
+
+  <div class="pilotage">
+    <button class="lecture" id="lecture" type="button" aria-pressed="false" aria-label="Mettre l’animation en pause">
+      <svg class="ico-pause" width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><rect x="2" y="1" width="3.6" height="12" fill="currentColor"/><rect x="8.4" y="1" width="3.6" height="12" fill="currentColor"/></svg>
+      <svg class="ico-lecture" width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><path d="M3 1 L13 7 L3 13 Z" fill="currentColor"/></svg>
+    </button>
+    <ol class="etapes">
+      <li><button type="button" data-i="0"><span class="jauge"><i></i></span><span class="nom"><span class="num">1</span>Horizon</span></button></li>
+      <li><button type="button" data-i="1"><span class="jauge"><i></i></span><span class="nom"><span class="num">2</span>Relais</span></button></li>
+      <li><button type="button" data-i="2"><span class="jauge"><i></i></span><span class="nom"><span class="num">3</span>Détour</span></button></li>
+      <li><button type="button" data-i="3"><span class="jauge"><i></i></span><span class="nom"><span class="num">4</span>Brouillage</span></button></li>
+    </ol>
+  </div>
+
+  <div class="legendes">
+    <section class="legende" data-i="0">
+      <h2>Sous l’horizon, plus de signal</h2>
+      <p>Les ondes radio se propagent en ligne droite. Un drone qui vole bas passe vite sous l’horizon&nbsp;: l’antenne restée en Russie ne peut plus le piloter.</p>
+    </section>
+    <section class="legende" data-i="1">
+      <h2>Un réseau maillé</h2>
+      <p>Chaque drone équipé d’un modem maillé sert à la fois de récepteur et de relais. Des drones volant à environ 2&nbsp;000&nbsp;mètres d’altitude se transmettent le signal de proche en proche&nbsp;: l’opérateur guide le drone d’attaque en temps réel et reçoit les images de sa caméra.</p>
+    </section>
+    <section class="legende" data-i="2">
+      <h2>Un réseau qui se répare</h2>
+      <p>Si un relais est abattu, le réseau cherche automatiquement un autre itinéraire. Détruire ou brouiller un seul drone ne suffit pas à couper la liaison.</p>
+    </section>
+    <section class="legende" data-i="3">
+      <h2>Le «&nbsp;dôme&nbsp;» de Kiev</h2>
+      <p>Des brouilleurs installés sur plusieurs centaines de sites saturent les fréquences des modems. Privé de liaison, le drone d’attaque bascule en navigation inertielle et vole en ligne droite, ce qui le rend plus facile à abattre. L’efficacité du dispositif reste à démontrer.</p>
+    </section>
+  </div>
+
+  <p class="source">Schéma de principe, sans échelle. Sources&nbsp;: Serhii Beskrestnov, The Wall Street Journal, Hromadske Radio · Graphique&nbsp;: Le Grand Continent</p>
+
+</main>
+
+<script>
+(() => {
+  const css = getComputedStyle(document.documentElement);
+  const tok = n => css.getPropertyValue(n).trim();
+  const C = { papier: tok('--papier'), encre: tok('--encre'), gris: tok('--gris'), filet: tok('--filet'),
+              sol: tok('--sol'), rouge: tok('--rouge'), bleu: tok('--bleu'), bati: '#d9d8d4', eteint: '#a3a3a8' };
+  const FONT = tok('--texte');
+  const rgba = (hex, a) => { const n = parseInt(hex.slice(1), 16); return `rgba(${n >> 16},${(n >> 8) & 255},${n & 255},${a})`; };
+
+  // ---------- Déroulé ----------
+  const TL = { steps: [[0, 6], [6, 14], [14, 21], [21, 31]], kills: [15.2, 17.6], seek: .7,
+               dome0: 21.5, dome1: 23.8, end: 31, still: [4.9, 11, 19.6, 27.5] };
+
+  // ---------- Deux mises en scène : large et étroite (téléphone) ----------
+  const WIDE = {
+    VW: 1000, VH: 384, gy0: 352, bulge: 90,
+    ant: { x: 60, h: 64 }, border: 250, R: 125, AR: 229, a0: 160, v: 2.2,
+    relays: [[0, 112], [110, 67], [108, 155], [215, 110], [322, 70], [320, 155], [428, 112], [525, 135]],
+    strike: [610, 185], wob: 8, after: [15, 1.5],
+    dome: { x: 865, r: 290 }, target: 5,
+    city: [[772, 16, 20], [792, 12, 34], [808, 18, 26], [830, 12, 46], [846, 20, 30], [870, 14, 56], [888, 18, 38], [910, 12, 28], [926, 16, 42], [946, 12, 24]],
+    low: { x0: 300, x1: 700, alt: 14 }, full: true
+  };
+  const NARROW = {
+    VW: 500, VH: 358, gy0: 332, bulge: 62,
+    ant: { x: 34, h: 46 }, border: 128, R: 100, AR: 172, a0: 80, v: 1.1,
+    relays: [[0, 120], [86, 78], [86, 150], [172, 110], [258, 74], [256, 148]],
+    strike: [330, 125], wob: 6, after: [7.5, 1],
+    dome: { x: 430, r: 190 }, target: 5,
+    city: [[374, 12, 16], [389, 9, 26], [401, 13, 20], [417, 9, 34], [429, 14, 23], [446, 10, 42], [459, 13, 28], [475, 9, 20]],
+    low: { x0: 150, x1: 352, alt: 11 }, full: false
+  };
+
+  let L = null, s = 1, u = 1, dpr = 1;        // u = 1 px écran exprimé en unités de scène
+  let ANT, DC, HZ, tJ = Infinity, beforeKill = [], beforeJam = [];
+
+  const clamp = (v, a = 0, b = 1) => Math.max(a, Math.min(b, v));
+  const ease = k => 1 - Math.pow(1 - clamp(k), 3);
+  const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+  const G = x => { const k = (x - L.VW / 2) / (L.VW / 2); return L.gy0 - L.bulge * (1 - k * k); };
+  const base = t => L.a0 + L.v * Math.max(0, t - TL.steps[1][0]);
+  const domeR = t => t < TL.dome0 ? 0 : L.dome.r * ease((t - TL.dome0) / (TL.dome1 - TL.dome0));
+
+  function strikePre(t){
+    return { x: base(t) + L.strike[0],
+             y: L.strike[1] + L.wob * Math.sin(1.25 * t) + 4 * Math.max(0, t - TL.steps[3][0]) };
+  }
+  function strikePos(t){
+    if (t < tJ) return strikePre(t);
+    const p = strikePre(tJ);
+    return { x: p.x + L.after[0] * (t - tJ), y: p.y + L.after[1] * (t - tJ) };
+  }
+  function losBlocked(a, b){
+    for (let k = 1; k < 100; k++){
+      const f = k / 100, x = a.x + (b.x - a.x) * f, y = a.y + (b.y - a.y) * f;
+      if (y > G(x) + .4) return { x, y: G(x) };
+    }
+    return null;
+  }
+
+  // Graphe du réseau à l'instant t : qui capte qui, et par où passe la liaison.
+  function solve(t){
+    const rD = domeR(t);
+    const relays = L.relays.map((r, i) => {
+      const dead = r.kill != null && t >= r.kill;
+      const p = { x: base(t) + r[0], y: r[1] };
+      return { id: 'r' + i, i, kind: 'relay', p, dead, jam: !dead && rD > 0 && dist(p, DC) < rD, r };
+    });
+    const S = { id: 'S', kind: 'strike', p: strikePos(t), dead: false, jam: t >= tJ };
+    const A = { id: 'A', kind: 'ant', p: ANT };
+    const live = [A, ...relays.filter(n => !n.dead && !n.jam), ...(S.jam ? [] : [S])];
+    const adj = new Map(live.map(n => [n, []]));
+    for (let i = 0; i < live.length; i++) for (let j = i + 1; j < live.length; j++){
+      const a = live[i], b = live[j];
+      const ok = a === A ? (b.kind === 'relay' && dist(a.p, b.p) < L.AR && !losBlocked(a.p, b.p)) : dist(a.p, b.p) < L.R;
+      if (ok){ adj.get(a).push(b); adj.get(b).push(a); }
+    }
+    let path = null;
+    if (!S.jam){
+      const prev = new Map([[A, null]]), q = [A];
+      while (q.length){ const n = q.shift(); if (n === S) break;
+        for (const m of adj.get(n)) if (!prev.has(m)){ prev.set(m, n); q.push(m); } }
+      if (prev.has(S)){ path = []; for (let n = S; n; n = prev.get(n)) path.unshift(n); }
+    }
+    return { relays, S, A, adj, path };
+  }
+  const keys = path => path ? path.slice(1).map((n, i) => path[i].id + '>' + n.id) : [];
+
+  // Prépare la scène pour la mise en page courante.
+  function plan(){
+    ANT = { x: L.ant.x, y: G(L.ant.x) - L.ant.h };
+    DC = { x: L.dome.x, y: G(L.dome.x) };
+    // horizon radio : rayon rasant depuis le sommet de l'antenne
+    let best = Infinity; HZ = null;
+    for (let x = ANT.x + 20; x < L.VW; x += 1){ const m = (G(x) - ANT.y) / (x - ANT.x); if (m < best){ best = m; HZ = { x, y: G(x), m }; } }
+    // instant où le brouillage atteint le drone d'attaque
+    tJ = Infinity;
+    for (let t = TL.dome0; t < TL.end; t += .01){ if (dist(strikePre(t), DC) < domeR(t)){ tJ = t; break; } }
+    // relais abattus : choisis sur l'itinéraire en cours, là où un détour existe
+    L.relays.forEach(r => { r.kill = null; });
+    beforeKill = [];
+    TL.kills.forEach(tk => {
+      const before = solve(tk - .01);
+      beforeKill.push(keys(before.path));
+      const cands = (before.path || []).filter(n => n.kind === 'relay');
+      for (const c of cands){
+        c.r.kill = tk;
+        if (solve(tk + .01).path) return;
+        c.r.kill = null;
+      }
+    });
+    beforeJam = solve(tJ - .02).path || [];
+  }
+
+  // ---------- Outils de dessin ----------
+  const cv = document.getElementById('c'), ctx = cv.getContext('2d'), sceneEl = document.getElementById('scene');
+
+  function label(txt, x, y, o = {}){
+    const { color = C.encre, align = 'center', w = 500, size = 12, halo = true } = o;
+    ctx.font = `${w} ${size * u}px ${FONT}`; ctx.textAlign = align; ctx.textBaseline = 'middle';
+    if (align === 'center'){ const half = ctx.measureText(txt).width / 2 + 5 * u; x = clamp(x, half, L.VW - half); }
+    if (halo){ ctx.lineJoin = 'round'; ctx.lineWidth = 3.5 * u; ctx.strokeStyle = 'rgba(255,255,255,.9)'; ctx.strokeText(txt, x, y); }
+    ctx.fillStyle = color; ctx.fillText(txt, x, y);
+  }
+  function chip(txt, x, y, color, fill = C.papier, ink = color){
+    ctx.font = `600 ${11.5 * u}px ${FONT}`;
+    const w = ctx.measureText(txt).width + 16 * u, h = 21 * u;
+    x = clamp(x, w / 2 + 4 * u, L.VW - w / 2 - 4 * u);
+    const x0 = x - w / 2, y0 = y - h / 2, r = h / 2;
+    ctx.beginPath(); ctx.moveTo(x0 + r, y0); ctx.arcTo(x0 + w, y0, x0 + w, y0 + h, r); ctx.arcTo(x0 + w, y0 + h, x0, y0 + h, r);
+    ctx.arcTo(x0, y0 + h, x0, y0, r); ctx.arcTo(x0, y0, x0 + w, y0, r); ctx.closePath();
+    ctx.fillStyle = fill; ctx.fill(); ctx.lineWidth = 1.2 * u; ctx.strokeStyle = color; ctx.stroke();
+    ctx.fillStyle = ink; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(txt, x, y + .5 * u);
+  }
+  function delta(x, y, size, fill, stroke, rot = 0, alpha = 1){
+    const k = size * u;
+    ctx.save(); ctx.globalAlpha *= alpha; ctx.translate(x, y); ctx.rotate(rot);
+    ctx.beginPath(); ctx.moveTo(k, 0); ctx.lineTo(-k * .85, -k * .72); ctx.lineTo(-k * .42, 0); ctx.lineTo(-k * .85, k * .72); ctx.closePath();
+    ctx.fillStyle = fill; ctx.fill(); ctx.lineJoin = 'round'; ctx.lineWidth = 1.5 * u; ctx.strokeStyle = stroke; ctx.stroke();
+    ctx.restore();
+  }
+  function cross(x, y, k, color, lw = 1.6){
+    ctx.strokeStyle = color; ctx.lineWidth = lw * u; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(x - k * u, y - k * u); ctx.lineTo(x + k * u, y + k * u);
+    ctx.moveTo(x + k * u, y - k * u); ctx.lineTo(x - k * u, y + k * u); ctx.stroke(); ctx.lineCap = 'butt';
+  }
+  const dash = (...d) => ctx.setLineDash(d.map(v => v * u));
+  function skyClip(){ ctx.beginPath(); ctx.moveTo(0, -50); for (let x = 0; x <= L.VW; x += 4) ctx.lineTo(x, G(x)); ctx.lineTo(L.VW, -50); ctx.closePath(); ctx.clip(); }
+  function packets(path, t, a = 1){
+    const seg = []; let len = 0;
+    for (let i = 0; i < path.length - 1; i++){ const l = dist(path[i], path[i + 1]); seg.push(l); len += l; }
+    if (len < 1) return;
+    const at = d => { d = ((d % len) + len) % len;
+      for (let i = 0; i < seg.length; i++){ if (d <= seg[i]){ const k = d / seg[i];
+        return { x: path[i].x + (path[i + 1].x - path[i].x) * k, y: path[i].y + (path[i + 1].y - path[i].y) * k }; } d -= seg[i]; }
+      return path[path.length - 1]; };
+    const n = Math.max(2, Math.round(len / (L.full ? 190 : 150)));
+    ctx.save(); ctx.globalAlpha *= a;
+    for (let k = 0; k < n; k++){
+      const img = at(-t * (L.full ? 105 : 70) + (k + .5) * len / n);      // images : vers l'opérateur
+      ctx.beginPath(); ctx.arc(img.x, img.y, 2.5 * u, 0, 7); ctx.fillStyle = C.papier; ctx.fill();
+      ctx.lineWidth = 1.2 * u; ctx.strokeStyle = C.encre; ctx.stroke();
+      const cmd = at(t * (L.full ? 150 : 100) + k * len / n);               // commandes : vers le drone
+      ctx.beginPath(); ctx.arc(cmd.x, cmd.y, 2.7 * u, 0, 7); ctx.fillStyle = C.encre; ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  // ---------- Décor ----------
+  function drawSet(t, showTarget){
+    ctx.fillStyle = C.papier; ctx.fillRect(0, 0, L.VW, L.VH);
+    // Kiev
+    ctx.fillStyle = C.bati;
+    L.city.forEach(([x, w, h]) => ctx.fillRect(x, G(x + w / 2) - h, w, h + 8));
+    // sol
+    ctx.beginPath(); ctx.moveTo(0, G(0)); for (let x = 0; x <= L.VW; x += 4) ctx.lineTo(x, G(x));
+    ctx.lineTo(L.VW, L.VH + 2); ctx.lineTo(0, L.VH + 2); ctx.closePath(); ctx.fillStyle = C.sol; ctx.fill();
+    ctx.beginPath(); for (let x = 0; x <= L.VW; x += 4) x ? ctx.lineTo(x, G(x)) : ctx.moveTo(x, G(x));
+    ctx.strokeStyle = C.encre; ctx.lineWidth = 1.2 * u; ctx.stroke();
+    // frontière
+    const bx = L.border, by = G(bx);
+    dash(2, 3); ctx.strokeStyle = C.gris; ctx.lineWidth = 1 * u;
+    ctx.beginPath(); ctx.moveTo(bx, by - 9 * u); ctx.lineTo(bx, by + 26 * u); ctx.stroke(); dash();
+    label('Russie', bx - 8 * u, by + 17 * u, { color: C.gris, align: 'right', halo: false });
+    label('Ukraine', bx + 8 * u, by + 17 * u, { color: C.gris, align: 'left', halo: false });
+    // antenne
+    const gx = G(ANT.x);
+    ctx.strokeStyle = C.encre; ctx.lineWidth = 1.3 * u;
+    ctx.beginPath(); ctx.moveTo(ANT.x - 6 * u, gx); ctx.lineTo(ANT.x, ANT.y); ctx.lineTo(ANT.x + 6 * u, gx);
+    const h = gx - ANT.y;
+    ctx.moveTo(ANT.x - 6 * u * .33, ANT.y + h * .33); ctx.lineTo(ANT.x + 6 * u * .66, ANT.y + h * .66);
+    ctx.moveTo(ANT.x + 6 * u * .33, ANT.y + h * .33); ctx.lineTo(ANT.x - 6 * u * .66, ANT.y + h * .66); ctx.stroke();
+    ctx.fillStyle = C.rouge; ctx.beginPath(); ctx.arc(ANT.x, ANT.y, 3.2 * u, 0, 7); ctx.fill();
+    for (let k = 0; k < 2; k++){
+      const f = ((t * .55 + k / 2) % 1);
+      ctx.strokeStyle = rgba(C.rouge, .5 * (1 - f)); ctx.lineWidth = 1.2 * u;
+      ctx.beginPath(); ctx.arc(ANT.x, ANT.y, (7 + f * 18) * u, -1.15, .25); ctx.stroke();
+    }
+    label('Antenne', Math.max(ANT.x, 28 * u), gx + 15 * u, { halo: false, w: 600 });
+    const cx = L.city[0][0] + (L.city.at(-1)[0] + L.city.at(-1)[1] - L.city[0][0]) / 2;
+    label('Kiev', cx, G(cx) + 17 * u, { halo: false, w: 600 });
+    // cible
+    if (showTarget > 0){
+      const p = targetPos();
+      ctx.save(); ctx.globalAlpha *= showTarget;
+      ctx.strokeStyle = C.encre; ctx.lineWidth = 1.2 * u;
+      ctx.beginPath(); ctx.arc(p.x, p.y, 5 * u, 0, 7);
+      ctx.moveTo(p.x - 9 * u, p.y); ctx.lineTo(p.x + 9 * u, p.y); ctx.moveTo(p.x, p.y - 9 * u); ctx.lineTo(p.x, p.y + 9 * u); ctx.stroke();
+      ctx.restore();
+    }
+  }
+  function targetPos(){ const [x, w, h] = L.city[L.target]; return { x: x + w / 2, y: G(x + w / 2) - h - 11 * u }; }
+
+  // ---------- Étape 1 : l'horizon ----------
+  function drawHorizon(t, a){
+    if (a <= 0) return;
+    ctx.save(); ctx.globalAlpha = a;
+    // zone d'ombre radio : sous le rayon rasant, au-delà de l'horizon
+    const lineY = x => ANT.y + HZ.m * (x - ANT.x);
+    // zone couverte : tout ce que l'antenne voit en ligne droite
+    ctx.save();
+    ctx.beginPath(); ctx.moveTo(ANT.x, ANT.y); ctx.lineTo(L.VW, lineY(L.VW)); ctx.lineTo(L.VW, -50); ctx.lineTo(0, -50); ctx.lineTo(0, ANT.y); ctx.closePath(); ctx.clip();
+    const cov = ctx.createRadialGradient(ANT.x, ANT.y, 0, ANT.x, ANT.y, L.VW * .95);
+    cov.addColorStop(0, rgba(C.rouge, .13)); cov.addColorStop(1, rgba(C.rouge, 0));
+    ctx.fillStyle = cov; ctx.fillRect(0, -50, L.VW, L.VH + 50);
+    dash(2, 4); ctx.lineWidth = 1 * u;
+    for (let k = 1; k <= 7; k++){ const f = (k + (t * .25 % 1)) / 8;
+      ctx.strokeStyle = rgba(C.rouge, .3 * (1 - f)); ctx.beginPath(); ctx.arc(ANT.x, ANT.y, f * L.VW * .95, 0, 7); ctx.stroke(); }
+    dash();
+    const fade = ctx.createLinearGradient(0, 0, 0, L.VH * .45);
+    fade.addColorStop(0, 'rgba(255,255,255,1)'); fade.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = fade; ctx.fillRect(0, -50, L.VW, L.VH * .45 + 50);
+    const side = ctx.createLinearGradient(0, 0, ANT.x, 0);
+    side.addColorStop(0, 'rgba(255,255,255,1)'); side.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = side; ctx.fillRect(0, -50, ANT.x, L.VH + 50);
+    ctx.restore();
+    label('Zone couverte par l’antenne', ANT.x + L.VW * .36, ANT.y - L.VH * (L.full ? .34 : .42), { color: C.rouge });
+    ctx.save();
+    ctx.beginPath(); ctx.moveTo(HZ.x, HZ.y); ctx.lineTo(L.VW, lineY(L.VW));
+    for (let x = L.VW; x >= HZ.x; x -= 4) ctx.lineTo(x, G(x)); ctx.closePath(); ctx.clip();
+    ctx.strokeStyle = rgba(C.encre, .16); ctx.lineWidth = 1 * u;
+    for (let k = -L.VH; k < L.VW; k += 7 * u){ ctx.beginPath(); ctx.moveTo(k, L.VH); ctx.lineTo(k + L.VH, 0); ctx.stroke(); }
+    ctx.restore();
+    dash(1, 4); ctx.strokeStyle = C.gris; ctx.lineWidth = 1 * u;
+    ctx.beginPath(); ctx.moveTo(HZ.x, HZ.y); ctx.lineTo(L.VW, lineY(L.VW)); ctx.stroke(); dash();
+
+    const k = clamp(t / 5.2), x = L.low.x0 + (L.low.x1 - L.low.x0) * k;
+    const d = { x, y: G(x) - L.low.alt };
+    const blk = losBlocked(ANT, d);
+    // trajectoire
+    dash(1.2, 4); ctx.strokeStyle = C.gris; ctx.lineWidth = 1.2 * u;
+    ctx.beginPath(); for (let xx = L.low.x0 - 40; xx <= x; xx += 4) xx > L.low.x0 - 40 ? ctx.lineTo(xx, G(xx) - L.low.alt) : ctx.moveTo(xx, G(xx) - L.low.alt);
+    ctx.stroke(); dash();
+    if (!blk){
+      ctx.strokeStyle = C.rouge; ctx.lineWidth = 1.8 * u;
+      ctx.beginPath(); ctx.moveTo(ANT.x, ANT.y); ctx.lineTo(d.x, d.y); ctx.stroke();
+      packets([ANT, d], t);
+    } else {
+      dash(4, 4); ctx.strokeStyle = C.eteint; ctx.lineWidth = 1.4 * u;
+      ctx.beginPath(); ctx.moveTo(ANT.x, ANT.y); ctx.lineTo(blk.x, blk.y); ctx.stroke(); dash();
+      cross(blk.x, blk.y, 4.5, C.encre, 1.8);
+    }
+    // horizon
+    ctx.strokeStyle = C.encre; ctx.lineWidth = 1.2 * u;
+    ctx.beginPath(); ctx.moveTo(HZ.x, HZ.y - 4 * u); ctx.lineTo(HZ.x, HZ.y - 52 * u); ctx.stroke();
+    label('Horizon radio', HZ.x, HZ.y - 62 * u, { w: 600 });
+    if (L.full) label('Hors de portée', L.VW - 10 * u, lineY(L.VW) - 13 * u, { color: C.gris, align: 'right' });
+    delta(d.x, d.y, 8.5, C.rouge, C.rouge, Math.atan2(G(x + 4) - G(x - 4), 8));
+    const cy = d.y - 24 * u;
+    if (!blk) chip('Liaison active', d.x, cy, C.rouge);
+    else chip('Liaison perdue', d.x, cy, C.encre, C.encre, C.papier);
+    ctx.restore();
+  }
+
+  // ---------- Étapes 2 à 4 : le maillage, puis le brouillage ----------
+  function drawMesh(t, a){
+    if (a <= 0) return;
+    const st = solve(t), rD = domeR(t), step = stepAt(t);
+    const disp = n => n.kind === 'relay' ? { x: n.p.x, y: n.p.y + 2.5 * Math.sin(t * 1.1 + n.i * 1.7) } : n.p;
+    const D = new Map([st.A, st.S, ...st.relays].map(n => [n.id, disp(n)]));
+    ctx.save(); ctx.globalAlpha = a;
+
+    // dôme de brouillage
+    if (rD > 0){
+      ctx.save(); skyClip();
+      const g = ctx.createRadialGradient(DC.x, DC.y, 0, DC.x, DC.y, rD);
+      g.addColorStop(0, rgba(C.bleu, .13)); g.addColorStop(1, rgba(C.bleu, .035));
+      ctx.fillStyle = g; ctx.beginPath(); ctx.arc(DC.x, DC.y, rD, 0, 7); ctx.fill();
+      for (let k = 0; k < 3; k++){
+        const f = ((t * .22 + k / 3) % 1);
+        ctx.strokeStyle = rgba(C.bleu, .28 * (1 - f)); ctx.lineWidth = 1 * u;
+        ctx.beginPath(); ctx.arc(DC.x, DC.y, rD * f, 0, 7); ctx.stroke();
+      }
+      dash(5, 4); ctx.strokeStyle = rgba(C.bleu, .85); ctx.lineWidth = 1.3 * u;
+      ctx.beginPath(); ctx.arc(DC.x, DC.y, rD, 0, 7); ctx.stroke(); dash();
+      ctx.restore();
+      // brouilleurs sur les toits
+      const ja = clamp((t - TL.dome0 + .4) / .6);
+      L.city.forEach(([x, w, h], i) => {
+        if (i === L.target) return;
+        const px = x + w / 2, py = G(px) - h;
+        ctx.strokeStyle = rgba(C.bleu, ja); ctx.lineWidth = 1.3 * u;
+        ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(px, py - 6 * u); ctx.stroke();
+        ctx.fillStyle = rgba(C.bleu, ja); ctx.beginPath(); ctx.arc(px, py - 7 * u, 2 * u, 0, 7); ctx.fill();
+      });
+    }
+
+    // portée radio de chaque drone
+    [...st.relays, st.S].forEach(n => {
+      if (n.dead) return; const p = D.get(n.id);
+      ctx.beginPath(); ctx.arc(p.x, p.y, L.R / 2, 0, 7);
+      if (n.jam){ dash(2, 3); ctx.strokeStyle = rgba(C.encre, .22); ctx.lineWidth = 1 * u; ctx.stroke(); dash(); }
+      else { ctx.fillStyle = rgba(C.rouge, .045); ctx.fill(); dash(2, 3); ctx.strokeStyle = rgba(C.rouge, .32); ctx.lineWidth = 1 * u; ctx.stroke(); dash(); }
+    });
+
+    // trajectoires
+    dash(1.2, 4); ctx.strokeStyle = rgba(C.encre, .32); ctx.lineWidth = 1.2 * u;
+    const t0 = TL.steps[1][0];
+    st.relays.forEach(n => { if (n.dead) return; const p = D.get(n.id);
+      ctx.beginPath(); ctx.moveTo(p.x - (L.full ? 46 : 30), p.y); ctx.lineTo(p.x - 12 * u, p.y); ctx.stroke(); });
+    ctx.beginPath();
+    for (let k = 0; k <= 26; k++){ const p = strikePos(Math.max(t0 - 2, t - k * .28)); k ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y); }
+    ctx.stroke(); dash();
+
+    // liens possibles du maillage
+    dash(3, 4); ctx.strokeStyle = rgba(C.rouge, .34); ctx.lineWidth = 1 * u;
+    st.adj.forEach((vs, n) => vs.forEach(m => { if (n.id < m.id){ const p = D.get(n.id), q = D.get(m.id);
+      ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(q.x, q.y); ctx.stroke(); } }));
+    dash();
+
+    // liens coupés par le brouillage
+    if (t >= tJ){
+      for (let i = 0; i < beforeJam.length - 1; i++){
+        const n = beforeJam[i], m = beforeJam[i + 1];
+        const cur = id => id === 'S' ? st.S : id === 'A' ? st.A : st.relays[+id.slice(1)];
+        const a1 = cur(n.id), b1 = cur(m.id);
+        if (!(a1.jam || b1.jam) || a1.dead || b1.dead) continue;
+        const p = D.get(n.id), q = D.get(m.id), mx = (p.x + q.x) / 2, my = (p.y + q.y) / 2;
+        dash(3, 4); ctx.strokeStyle = C.eteint; ctx.lineWidth = 1.3 * u;
+        ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(q.x, q.y); ctx.stroke(); dash();
+        ctx.fillStyle = C.papier; ctx.beginPath(); ctx.arc(mx, my, 7 * u, 0, 7); ctx.fill();
+        cross(mx, my, 3.6, C.bleu, 1.8);
+      }
+    }
+
+    // liaison active
+    const sinceKill = TL.kills.map(k => t - k).filter(d => d >= 0).pop();
+    const seeking = sinceKill != null && sinceKill < TL.seek;
+    if (st.path && !seeking){
+      const pts = st.path.map(n => D.get(n.id));
+      const ki = TL.kills.findLastIndex(k => t >= k);
+      if (ki >= 0 && sinceKill < TL.seek + 1.3){
+        const fa = 1 - (sinceKill - TL.seek) / 1.3, old = new Set(beforeKill[ki]);
+        ctx.strokeStyle = rgba(C.rouge, .22 * fa); ctx.lineWidth = 9 * u; ctx.lineCap = 'round';
+        keys(st.path).forEach((k, i) => { if (!old.has(k)){ ctx.beginPath(); ctx.moveTo(pts[i].x, pts[i].y); ctx.lineTo(pts[i + 1].x, pts[i + 1].y); ctx.stroke(); } });
+        ctx.lineCap = 'butt';
+      }
+      ctx.strokeStyle = C.rouge; ctx.lineWidth = 1.9 * u; ctx.lineJoin = 'round';
+      ctx.beginPath(); pts.forEach((p, i) => i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y)); ctx.stroke();
+      packets(pts, t);
+    }
+
+    // drones relais
+    st.relays.forEach(n => {
+      const p = D.get(n.id);
+      if (n.dead){
+        const d = t - n.r.kill, o = { x: base(n.r.kill) + n.r[0], y: n.r[1] };
+        if (d < .7){
+          ctx.strokeStyle = rgba(C.encre, 1 - d / .7); ctx.lineWidth = 1.5 * u;
+          for (let k = 0; k < 8; k++){ const an = k * Math.PI / 4 + .3, r0 = (5 + d * 26) * u, r1 = (9 + d * 40) * u;
+            ctx.beginPath(); ctx.moveTo(o.x + Math.cos(an) * r0, o.y + Math.sin(an) * r0); ctx.lineTo(o.x + Math.cos(an) * r1, o.y + Math.sin(an) * r1); ctx.stroke(); }
+        }
+        const fa = clamp(1 - d / 1.5);
+        if (fa > 0) delta(o.x + 14 * d, o.y + 150 * d * d, 8, C.papier, C.eteint, d * 2.2, fa);
+        if (d < 2.4) label('Relais abattu', o.x, o.y - 18 * u, { color: C.encre, w: 600, size: 11.5 });
+        return;
+      }
+      delta(p.x, p.y, 8, C.papier, n.jam ? C.eteint : C.rouge);
+      if (n.jam){ ctx.strokeStyle = C.bleu; ctx.lineWidth = 1.2 * u; ctx.beginPath(); ctx.arc(p.x, p.y, 13 * u, 0, 7); ctx.stroke(); }
+    });
+
+    // drone d'attaque
+    const sp = st.S.p, ahead = strikePos(t + .1), back = strikePos(t - .1);
+    delta(sp.x, sp.y, 10, C.rouge, C.rouge, Math.atan2(ahead.y - back.y, ahead.x - back.x + (L.full ? 5 : 3.5)));
+    if (st.S.jam){ ctx.strokeStyle = C.bleu; ctx.lineWidth = 1.2 * u; ctx.beginPath(); ctx.arc(sp.x, sp.y, 15 * u, 0, 7); ctx.stroke(); }
+
+    // libellés
+    const r0 = D.get('r0');
+    if (step === 1){
+      const fa = clamp((t - TL.steps[1][0] - .6) / .6) * clamp((TL.steps[1][1] - t) / .5);
+      ctx.save(); ctx.globalAlpha *= fa;
+      label('≈ 2 000 m', Math.max(r0.x, 34 * u), r0.y - L.R / 2 - 10 * u, { color: C.gris, size: 11.5 });
+      ctx.restore();
+    }
+    if (L.full){
+      const mid = st.relays[3];
+      if (step === 1 && !mid.dead){ const p = D.get(mid.id); label('Drones relais', p.x, p.y + 25 * u, { w: 600 }); }
+      if (!st.S.jam && s > .8) label('Drone d’attaque', sp.x, sp.y + 25 * u, { w: 600 });
+      if (step === 1){ const tp = targetPos(); label('Cible', tp.x, tp.y - 19 * u, { w: 600 }); }
+    }
+    const cy = L.full ? sp.y - 27 * u : sp.y + 26 * u;
+    if (st.S.jam) chip(L.full ? 'Liaison perdue : navigation inertielle' : 'Liaison perdue', sp.x, cy, C.bleu, C.bleu, C.papier);
+    else if (seeking) chip('Recherche d’un autre itinéraire', sp.x, cy, C.encre);
+    else if (st.path) chip('Liaison active', sp.x, cy, C.rouge);
+    if (rD > 0){
+      const fa = clamp((t - TL.dome1 + .6) / .6);
+      ctx.save(); ctx.globalAlpha *= fa;
+      const ly = L.full ? DC.y - L.dome.r + 24 * u : DC.y - L.dome.r * .4;
+      label('Brouillage', DC.x, ly, { color: C.bleu, w: 600, size: 13 });
+      if (L.full) label('brouilleurs sur plusieurs centaines de sites', DC.x, ly + 17 * u, { color: C.bleu, size: 11.5 });
+      ctx.restore();
+    }
+    ctx.restore();
+  }
+
+  // ---------- Rendu ----------
+  const stepAt = t => { for (let i = 0; i < 4; i++) if (t < TL.steps[i][1]) return i; return 3; };
+  function render(t){
+    ctx.setTransform(dpr * s, 0, 0, dpr * s, 0, 0);
+    const cut = TL.steps[1][0];
+    const a1 = clamp(t / .5) * clamp((cut - t) / .6);
+    const a2 = clamp((t - cut + .1) / .9) * clamp((TL.end - t) / .7);
+    drawSet(t, a2);
+    drawHorizon(t, a1);
+    drawMesh(t, a2);
+  }
+
+  // ---------- Lecture, étapes, intégration ----------
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const btn = document.getElementById('lecture');
+  const stepBtns = [...document.querySelectorAll('.etapes button')];
+  const fills = stepBtns.map(b => b.querySelector('.jauge i'));
+  const caps = [...document.querySelectorAll('.legende')];
+  let t = reduce ? TL.still[1] : 0, playing = !reduce, visible = true, last = 0, shown = -1, dirty = true;
+
+  function setPlaying(p){
+    playing = p; btn.setAttribute('aria-pressed', String(!p));
+    btn.setAttribute('aria-label', p ? 'Mettre l’animation en pause' : 'Lancer l’animation');
+  }
+  function syncUI(){
+    const i = stepAt(t);
+    fills.forEach((f, k) => { const [a, b] = TL.steps[k]; f.style.width = (clamp((t - a) / (b - a)) * 100).toFixed(1) + '%'; });
+    if (i !== shown){
+      shown = i;
+      stepBtns.forEach((b, k) => { b.classList.toggle('actif', k === i); if (k === i) b.setAttribute('aria-current', 'step'); else b.removeAttribute('aria-current'); });
+      caps.forEach((c, k) => { c.classList.toggle('actif', k === i); c.setAttribute('aria-hidden', String(k !== i)); });
+    }
+  }
+  btn.addEventListener('click', () => { setPlaying(!playing); dirty = true; });
+  stepBtns.forEach(b => b.addEventListener('click', () => {
+    const i = +b.dataset.i;
+    if (reduce){ t = TL.still[i]; setPlaying(false); } else { t = TL.steps[i][0] + .001; setPlaying(true); }
+    dirty = true;
+  }));
+
+  function resize(){
+    const w = sceneEl.clientWidth; if (!w) return;
+    const next = w < 560 ? NARROW : WIDE;
+    if (next !== L){ L = next; s = w / L.VW; u = 1 / s; plan(); }
+    s = w / L.VW; u = 1 / s; dpr = Math.min(3, window.devicePixelRatio || 1);
+    cv.style.height = (L.VH * s).toFixed(1) + 'px';
+    cv.width = Math.round(w * dpr); cv.height = Math.round(L.VH * s * dpr);
+    dirty = true;
+  }
+  new ResizeObserver(resize).observe(sceneEl); resize();
+  if ('IntersectionObserver' in window) new IntersectionObserver(es => { visible = es[0].isIntersecting; }, { threshold: .15 }).observe(sceneEl);
+  document.addEventListener('visibilitychange', () => { last = 0; });
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { dirty = true; });
+
+  function frame(now){
+    const dt = last ? Math.min(.05, (now - last) / 1000) : 0; last = now;
+    if (playing && visible && L){ t += dt; if (t >= TL.end) t = 0; dirty = true; }
+    if (dirty && L){ render(t); syncUI(); dirty = false; }
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
